@@ -6,6 +6,37 @@
     <span class="text-muted">歡迎, {{ user.display_name }}</span>
 </div>
 
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card text-center p-4">
+            <i class="bi bi-building" style="font-size: 2rem; color: #e74c3c;"></i>
+            <h5 class="mt-2">廠商管理</h5>
+            <a href="/vendors" class="btn btn-outline-danger btn-sm mt-2">管理廠商</a>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center p-4">
+            <i class="bi bi-people" style="font-size: 2rem; color: #3498db;"></i>
+            <h5 class="mt-2">客戶管理</h5>
+            <a href="/customers" class="btn btn-outline-primary btn-sm mt-2">管理客戶</a>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center p-4">
+            <i class="bi bi-person-badge" style="font-size: 2rem; color: #2ecc71;"></i>
+            <h5 class="mt-2">員工管理</h5>
+            <a href="/employees" class="btn btn-outline-success btn-sm mt-2">管理員工</a>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center p-4">
+            <i class="bi bi-shield-check" style="font-size: 2rem; color: #9b59b6;"></i>
+            <h5 class="mt-2">勞健保級距</h5>
+            <a href="/insurance" class="btn btn-outline-info btn-sm mt-2">設定級距</a>
+        </div>
+    </div>
+</div>
+
 <div class="row g-4">
     <div class="col-md-3">
         <div class="card text-center p-4">
@@ -43,6 +74,8 @@
             <div class="card-header">快速連結</div>
             <div class="card-body">
                 <div class="list-group">
+                    <a href="/vendor-invoices" class="list-group-item list-group-item-action"><i class="bi bi-file-text text-danger"></i> 廠商發票管理</a>
+                    <a href="/receivables" class="list-group-item list-group-item-action"><i class="bi bi-cash-coin text-success"></i> 應收帳款管理</a>
                     <a href="/vouchers/new" class="list-group-item list-group-item-action"><i class="bi bi-plus-circle text-success"></i> 新增傳票</a>
                     <a href="/reports/income-statement" class="list-group-item list-group-item-action"><i class="bi bi-graph-up text-primary"></i> 損益表</a>
                     <a href="/reports/balance-sheet" class="list-group-item list-group-item-action"><i class="bi bi-pie-chart text-info"></i> 資產負債表</a>

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}客戶管理 - 會計管理系統{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="page-title mb-0">客戶管理</h4>
+</div>
+
+<div class="card border-2 border-dashed mb-4" style="border-style: dashed !important;">
+    <div class="card-body">
+        <h6 class="card-title text-muted mb-3"><i class="bi bi-plus-circle"></i> 新增客戶</h6>
+        <input type="hidden" id="editId">
+        <div class="row">
+            <div class="col-md-2 mb-2">
+                <label class="form-label small">客戶編號</label>
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control" id="code" required>
+                    <button class="btn btn-outline-secondary" type="button" onclick="autoCode()" title="自動編號"><i class="bi bi-magic"></i></button>
+                </div>
+            </div>
+            <div class="col-md-4 mb-2">
+                <label class="form-label small">客戶名稱</label>
+                <input type="text" class="form-control form-control-sm" id="name" required>
+            </div>
+            <div class="col-md-3 mb-2">
+                <label class="form-label small">聯絡人</label>
+                <input type="text" class="form-control form-control-sm" id="contact_person">
+            </div>
+            <div class="col-md-3 mb-2">
+                <label class="form-label small">電話</label>
+                <input type="text" class="form-control form-control-sm" id="phone">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                <label class="form-label small">Email</label>
+                <input type="email" class="form-control form-control-sm" id="email">
+            </div>
+            <div class="col-md-3 mb-2">
+                <label class="form-label small">月結票期</label>
+                <input type="text" class="form-control form-control-sm" id="payment_terms" placeholder="如：月結30天">
+            </div>
+            <div class="col-md-5 mb-2">
+                <label class="form-label small">地址</label>
+                <input type="text" class="form-control form-control-sm" id="address">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12 mb-2 d-flex justify-content-end">
+                <button class="btn btn-primary btn-sm me-2" onclick="save()"><i class="bi bi-check-lg"></i> 儲存</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="resetForm()"><i class="bi bi-x-lg"></i> 清除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover" id="dataTable">
+            <thead>
+                <tr>
+                    <th>編號</th>
+                    <th>客戶名稱</th>
+                    <th>聯絡人</th>
+                    <th>電話</th>
+                    <th>月結票期</th>
+                    <th>狀態</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadData() {
+    axios.get('/api/customers').then(res => {
+        const tbody = document.querySelector('#dataTable tbody');
+        tbody.innerHTML = res.data.map(c => `<tr>
+            <td>${c.code}</td>
+            <td>${c.name}</td>
+            <td>${c.contact_person || '-'}</td>
+            <td>${c.phone || '-'}</td>
+            <td>${c.payment_terms || '-'}</td>
+            <td>${c.is_active ? '<span class="text-success">啟用</span>' : '<span class="text-danger">停用</span>'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="edit(${c.id})">編輯</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="del(${c.id})">刪除</button>
+            </td>
+        </tr>`).join('');
+    });
+}
+
+function resetForm() {
+    document.getElementById('editId').value = '';
+    document.getElementById('code').value = '';
+    document.getElementById('code').disabled = false;
+    document.getElementById('name').value = '';
+    document.getElementById('contact_person').value = '';
+    document.getElementById('phone').value = '';
+    document.getElementById('email').value = '';
+    document.getElementById('address').value = '';
+    document.getElementById('payment_terms').value = '';
+    autoCode();
+}
+
+function autoCode() {
+    axios.get('/api/customers/next-code?prefix=C').then(res => {
+        document.getElementById('code').value = res.data.code;
+    }).catch(() => {
+        document.getElementById('code').value = 'C01';
+    });
+}
+
+function fillForm(data) {
+    document.getElementById('editId').value = data.id;
+    document.getElementById('code').value = data.code;
+    document.getElementById('code').disabled = true;
+    document.getElementById('name').value = data.name;
+    document.getElementById('contact_person').value = data.contact_person || '';
+    document.getElementById('phone').value = data.phone || '';
+    document.getElementById('email').value = data.email || '';
+    document.getElementById('address').value = data.address || '';
+    document.getElementById('payment_terms').value = data.payment_terms || '';
+}
+
+function edit(id) {
+    axios.get('/api/customers/' + id).then(res => fillForm(res.data));
+}
+
+function save() {
+    const id = document.getElementById('editId').value;
+    const data = {
+        code: document.getElementById('code').value,
+        name: document.getElementById('name').value,
+        contact_person: document.getElementById('contact_person').value,
+        phone: document.getElementById('phone').value,
+        email: document.getElementById('email').value,
+        address: document.getElementById('address').value,
+        payment_terms: document.getElementById('payment_terms').value,
+    };
+    if (!data.code || !data.name) { alert('請填寫客戶編號與名稱'); return; }
+    const req = id ? axios.put('/api/customers/' + id, data) : axios.post('/api/customers', data);
+    req.then(() => { resetForm(); loadData(); })
+      .catch(err => alert(err.response?.data?.detail || '操作失敗'));
+}
+
+function del(id) {
+    if (!confirm('確定刪除此客戶？')) return;
+    axios.delete('/api/customers/' + id).then(() => loadData()).catch(err => alert(err.response?.data?.detail || '刪除失敗'));
+}
+
+loadData();
+</script>
+{% endblock %}

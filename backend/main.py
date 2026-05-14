@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from .database import engine, Base, get_db, SessionLocal, DATABASE_URL
 from .models import User, Account
 from .auth import hash_password, verify_password, get_current_user, require_auth
-from .routers import accounts, vouchers, ledger, reports
+from .routers import accounts, vouchers, ledger, reports, vendors, vendor_invoices, customers, receivables, employees, insurance
 
 app = FastAPI(title="會計管理系統")
 
@@ -26,6 +26,12 @@ app.include_router(accounts.router)
 app.include_router(vouchers.router)
 app.include_router(ledger.router)
 app.include_router(reports.router)
+app.include_router(vendors.router)
+app.include_router(vendor_invoices.router)
+app.include_router(customers.router)
+app.include_router(receivables.router)
+app.include_router(employees.router)
+app.include_router(insurance.router)
 
 
 def seed_default_data():
@@ -111,14 +117,14 @@ def login_page(request: Request):
     user = get_current_user(request)
     if user:
         return RedirectResponse(url="/", status_code=302)
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html")
 
 
 @app.post("/login")
 def login(request: Request, username: str = Form(), password: str = Form(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == username, User.is_active == True).first()
     if not user or not verify_password(password, user.password_hash):
-        return templates.TemplateResponse("login.html", {"request": request, "error": "帳號或密碼錯誤"})
+        return templates.TemplateResponse(request, "login.html", {"error": "帳號或密碼錯誤"})
     request.session["user_id"] = user.id
     return RedirectResponse(url="/", status_code=302)
 
@@ -134,7 +140,7 @@ def index(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "index.html", {"user": user})
 
 
 @app.get("/accounts", response_class=HTMLResponse)
@@ -142,7 +148,7 @@ def accounts_page(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    return templates.TemplateResponse("accounts.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "accounts.html", {"user": user})
 
 
 @app.get("/vouchers", response_class=HTMLResponse)
@@ -150,7 +156,7 @@ def vouchers_page(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    return templates.TemplateResponse("vouchers.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "vouchers.html", {"user": user})
 
 
 @app.get("/vouchers/new", response_class=HTMLResponse)
@@ -158,7 +164,7 @@ def new_voucher_page(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    return templates.TemplateResponse("voucher_form.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "voucher_form.html", {"user": user})
 
 
 @app.get("/vouchers/{voucher_id}/edit", response_class=HTMLResponse)
@@ -166,7 +172,7 @@ def edit_voucher_page(voucher_id: int, request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    return templates.TemplateResponse("voucher_form.html", {"request": request, "user": user, "voucher_id": voucher_id})
+    return templates.TemplateResponse(request, "voucher_form.html", {"user": user, "voucher_id": voucher_id})
 
 
 @app.get("/ledger", response_class=HTMLResponse)
@@ -174,7 +180,7 @@ def ledger_page(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    return templates.TemplateResponse("ledger.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "ledger.html", {"user": user})
 
 
 @app.get("/reports/trial-balance", response_class=HTMLResponse)
@@ -182,7 +188,7 @@ def trial_balance_page(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    return templates.TemplateResponse("trial_balance.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "trial_balance.html", {"user": user})
 
 
 @app.get("/reports/income-statement", response_class=HTMLResponse)
@@ -190,7 +196,7 @@ def income_statement_page(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    return templates.TemplateResponse("income_statement.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "income_statement.html", {"user": user})
 
 
 @app.get("/reports/balance-sheet", response_class=HTMLResponse)
@@ -198,4 +204,52 @@ def balance_sheet_page(request: Request):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
-    return templates.TemplateResponse("balance_sheet.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "balance_sheet.html", {"user": user})
+
+
+@app.get("/vendors", response_class=HTMLResponse)
+def vendors_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse(request, "vendors.html", {"user": user})
+
+
+@app.get("/vendor-invoices", response_class=HTMLResponse)
+def vendor_invoices_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse(request, "vendor_invoices.html", {"user": user})
+
+
+@app.get("/customers", response_class=HTMLResponse)
+def customers_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse(request, "customers.html", {"user": user})
+
+
+@app.get("/receivables", response_class=HTMLResponse)
+def receivables_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse(request, "receivables.html", {"user": user})
+
+
+@app.get("/employees", response_class=HTMLResponse)
+def employees_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse(request, "employees.html", {"user": user})
+
+
+@app.get("/insurance", response_class=HTMLResponse)
+def insurance_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse(request, "insurance.html", {"user": user})

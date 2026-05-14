@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}應收帳款 - 會計管理系統{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="page-title mb-0">應收帳款管理</h4>
+</div>
+
+<div class="card border-2 border-dashed mb-4" style="border-style: dashed !important;">
+    <div class="card-body">
+        <h6 class="card-title text-muted mb-3"><i class="bi bi-plus-circle"></i> 新增應收帳款</h6>
+        <input type="hidden" id="editId">
+        <div class="row">
+            <div class="col-md-3 mb-2">
+                <label class="form-label small">客戶</label>
+                <select class="form-select form-select-sm" id="customer_id" onchange="calcDueDate()" required></select>
+            </div>
+            <div class="col-md-2 mb-2">
+                <label class="form-label small">發票號碼</label>
+                <input type="text" class="form-control form-control-sm" id="invoice_no" required>
+            </div>
+            <div class="col-md-2 mb-2">
+                <label class="form-label small">金額（未稅）</label>
+                <input type="number" step="1" class="form-control form-control-sm" id="amount" oninput="calcTotal()">
+            </div>
+            <div class="col-md-1 mb-2">
+                <label class="form-label small">稅額 5%</label>
+                <input type="number" step="1" class="form-control form-control-sm" id="tax" readonly>
+            </div>
+            <div class="col-md-1 mb-2">
+                <label class="form-label small">總計</label>
+                <input type="number" step="1" class="form-control form-control-sm" id="total_amount" readonly>
+            </div>
+            <div class="col-md-1 mb-2">
+                <label class="form-label small">發票日期</label>
+                <input type="date" class="form-control form-control-sm" id="invoice_date" onchange="calcDueDate()">
+            </div>
+            <div class="col-md-1 mb-2">
+                <label class="form-label small">到期日</label>
+                <input type="date" class="form-control form-control-sm" id="due_date">
+            </div>
+            <div class="col-md-1 mb-2 d-flex flex-column justify-content-end">
+                <button class="btn btn-primary btn-sm mb-1" onclick="save()"><i class="bi bi-check-lg"></i> 儲存</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="resetForm()"><i class="bi bi-x-lg"></i> 清除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover" id="dataTable">
+            <thead>
+                <tr>
+                    <th>客戶</th>
+                    <th>發票號碼</th>
+                    <th>發票日期</th>
+                    <th class="text-end">金額</th>
+                    <th class="text-end">稅額</th>
+                    <th class="text-end">總計</th>
+                    <th>到期日</th>
+                    <th>收款狀態</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">收款處理</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="paymentId">
+                <div class="mb-3">
+                    <label class="form-label">收款日期</label>
+                    <input type="date" class="form-control" id="received_date">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">收款備註</label>
+                    <textarea class="form-control" id="received_notes" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button class="btn btn-success" onclick="markReceived()">確認收款</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const customerMap = {};
+
+function calcTotal() {
+    const amt = parseInt(document.getElementById('amount').value) || 0;
+    const tax = Math.round(amt * 0.05);
+    document.getElementById('tax').value = tax;
+    document.getElementById('total_amount').value = amt + tax;
+}
+
+function parseDays(terms) {
+    if (!terms) return 0;
+    const m = terms.match(/(\d+)/);
+    return m ? parseInt(m[1]) : 0;
+}
+
+function calcDueDate() {
+    const cid = document.getElementById('customer_id').value;
+    const invDate = document.getElementById('invoice_date').value;
+    if (!cid || !invDate || !customerMap[cid]) return;
+    const days = parseDays(customerMap[cid].payment_terms);
+    if (!days) return;
+    const d = new Date(invDate);
+    d.setDate(d.getDate() + days);
+    document.getElementById('due_date').value = d.toISOString().slice(0,10);
+}
+
+function loadCustomers() {
+    axios.get('/api/customers').then(res => {
+        const sel = document.getElementById('customer_id');
+        sel.innerHTML = '<option value="">選擇客戶</option>';
+        res.data.filter(c => c.is_active).forEach(c => {
+            customerMap[c.id] = c;
+            sel.innerHTML += `<option value="${c.id}">${c.code} - ${c.name}</option>`;
+        });
+    });
+}
+
+function resetForm() {
+    document.getElementById('editId').value = '';
+    document.getElementById('invoice_no').value = '';
+    document.getElementById('invoice_date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('amount').value = '';
+    document.getElementById('tax').value = '';
+    document.getElementById('total_amount').value = '';
+    document.getElementById('customer_id').value = '';
+    document.getElementById('due_date').value = '';
+    loadCustomers();
+}
+
+function loadData() {
+    axios.get('/api/receivables').then(res => {
+        const tbody = document.querySelector('#dataTable tbody');
+        tbody.innerHTML = res.data.map(r => `<tr class="${r.is_received ? 'table-success' : ''}">
+            <td>${r.customer_name}</td>
+            <td>${r.invoice_no}</td>
+            <td>${r.invoice_date}</td>
+            <td class="text-end">${Math.round(r.amount)}</td>
+            <td class="text-end">${Math.round(r.tax)}</td>
+            <td class="text-end">${Math.round(r.total_amount)}</td>
+            <td>${r.due_date || '-'}</td>
+            <td>${r.is_received ? '<span class="badge bg-success">已收款</span>' : '<span class="badge bg-warning">未收款</span>'}</td>
+            <td>
+                ${r.is_received ? '' : `<button class="btn btn-sm btn-outline-success" onclick="showPayment(${r.id})">收款</button>`}
+                <button class="btn btn-sm btn-outline-danger" onclick="del(${r.id})">刪除</button>
+            </td>
+        </tr>`).join('');
+    });
+}
+
+function save() {
+    const data = {
+        customer_id: parseInt(document.getElementById('customer_id').value),
+        invoice_no: document.getElementById('invoice_no').value,
+        invoice_date: document.getElementById('invoice_date').value,
+        amount: parseInt(document.getElementById('amount').value) || 0,
+        tax: parseInt(document.getElementById('tax').value) || 0,
+        total_amount: parseInt(document.getElementById('total_amount').value) || 0,
+        due_date: document.getElementById('due_date').value || null,
+    };
+    if (!data.customer_id || !data.invoice_no) { alert('請填寫客戶與發票號碼'); return; }
+    axios.post('/api/receivables', data).then(() => { resetForm(); loadData(); })
+      .catch(err => alert(err.response?.data?.detail || '操作失敗'));
+}
+
+function showPayment(id) {
+    document.getElementById('paymentId').value = id;
+    document.getElementById('received_date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('received_notes').value = '';
+    new bootstrap.Modal(document.getElementById('paymentModal')).show();
+}
+
+function markReceived() {
+    const id = document.getElementById('paymentId').value;
+    axios.put('/api/receivables/' + id + '/payment', {
+        is_received: true,
+        received_date: document.getElementById('received_date').value,
+        received_notes: document.getElementById('received_notes').value,
+    }).then(() => {
+        bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+        loadData();
+    }).catch(err => alert(err.response?.data?.detail || '操作失敗'));
+}
+
+function del(id) {
+    if (!confirm('確定刪除此筆？')) return;
+    axios.delete('/api/receivables/' + id).then(() => loadData()).catch(err => alert(err.response?.data?.detail || '刪除失敗'));
+}
+
+resetForm();
+loadData();
+</script>
+{% endblock %}

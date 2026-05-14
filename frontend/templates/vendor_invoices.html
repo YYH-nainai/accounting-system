@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+{% block title %}廠商發票 - 會計管理系統{% endblock %}
+{% block content %}
+<style>
+@media print {
+    body * { visibility: hidden; }
+    .main-content, .main-content * { visibility: visible; }
+    .main-content { position: absolute; left: 0; top: 0; width: 100%; padding: 0; }
+    .main-content .card { box-shadow: none; border: 1px solid #000; }
+    .main-content .border-dashed, .main-content .d-flex.justify-content-between, .main-content .d-flex.align-items-center.mb-2,
+    .main-content .modal, .main-content thead tr:first-child { display: none; }
+    .main-content thead tr:last-child th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="page-title mb-0">廠商發票管理</h4>
+</div>
+
+<div class="card border-2 border-dashed mb-4" style="border-style: dashed !important;">
+    <div class="card-body">
+        <h6 class="card-title text-muted mb-3"><i class="bi bi-plus-circle"></i> 新增發票</h6>
+        <input type="hidden" id="editId">
+        <div class="row">
+            <div class="col-md-3 mb-2">
+                <label class="form-label small">廠商</label>
+                <select class="form-select form-select-sm" id="vendor_id" onchange="calcDueDate()" required></select>
+            </div>
+            <div class="col-md-2 mb-2">
+                <label class="form-label small">發票號碼</label>
+                <input type="text" class="form-control form-control-sm" id="invoice_no" required>
+            </div>
+            <div class="col-md-1 mb-2">
+                <label class="form-label small">發票日期</label>
+                <input type="date" class="form-control form-control-sm" id="invoice_date" onchange="calcDueDate()">
+            </div>
+            <div class="col-md-2 mb-2">
+                <label class="form-label small">金額（未稅）</label>
+                <input type="number" step="1" class="form-control form-control-sm" id="amount" oninput="calcTotal()">
+            </div>
+            <div class="col-md-1 mb-2">
+                <label class="form-label small">稅額 5%</label>
+                <input type="number" step="1" class="form-control form-control-sm" id="tax" readonly>
+            </div>
+            <div class="col-md-1 mb-2">
+                <label class="form-label small">總計</label>
+                <input type="number" step="1" class="form-control form-control-sm" id="total_amount" readonly>
+            </div>
+            <div class="col-md-2 mb-2 d-flex flex-column justify-content-end">
+                <button class="btn btn-primary btn-sm mb-1" onclick="save()"><i class="bi bi-check-lg"></i> 儲存</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="resetForm()"><i class="bi bi-x-lg"></i> 清除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex align-items-center mb-2">
+    <h6 class="mb-0 text-muted">廠商發票列表</h6>
+</div>
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover" id="dataTable">
+            <colgroup>
+                <col style="width:12%">
+                <col style="width:11%">
+                <col style="width:9%">
+                <col style="width:7%">
+                <col style="width:7%">
+                <col style="width:7%">
+                <col style="width:5%">
+                <col style="width:13%">
+                <col style="width:12%">
+                <col style="width:17%">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>
+                        <select class="form-select form-select-sm border-0 p-0 text-muted" id="vendorFilter" onchange="applyFilters()" style="font-weight:400; font-size:inherit;">
+                            <option value="">全部廠商</option>
+                        </select>
+                    </th>
+                    <th colspan="1"></th>
+                    <th>
+                        <select class="form-select form-select-sm border-0 p-0 text-muted" id="periodFilter" onchange="applyFilters()" style="font-weight:400; font-size:inherit;">
+                            <option value="">全部發票日期</option>
+                            <option value="01,02">115年1、2月</option>
+                            <option value="03,04">115年3、4月</option>
+                            <option value="05,06">115年5、6月</option>
+                            <option value="07,08">115年7、8月</option>
+                            <option value="09,10">115年9、10月</option>
+                            <option value="11,12">115年11、12月</option>
+                        </select>
+                    </th>
+                    <th colspan="3"></th>
+                    <th></th>
+                    <th>
+                        <select class="form-select form-select-sm border-0 p-0 text-muted" id="duePeriodFilter" onchange="applyFilters()" style="font-weight:400; font-size:inherit;">
+                            <option value="">全部到期發票</option>
+                            <option value="01,02">115年1、2月</option>
+                            <option value="03,04">115年3、4月</option>
+                            <option value="05,06">115年5、6月</option>
+                            <option value="07,08">115年7、8月</option>
+                            <option value="09,10">115年9、10月</option>
+                            <option value="11,12">115年11、12月</option>
+                        </select>
+                    </th>
+                    <th>
+                        <select class="form-select form-select-sm border-0 p-0 text-muted" id="paidFilter" onchange="applyFilters()" style="font-weight:400; font-size:inherit;">
+                            <option value="">全部狀態</option>
+                            <option value="0">未付款</option>
+                            <option value="1">已付款</option>
+                        </select>
+                    </th>
+                    <th>
+                        <button class="btn btn-sm border-0 p-0 text-muted" onclick="printPDF()" style="font-weight:400; font-size:inherit; text-decoration:underline;">PDF</button>
+                    </th>
+                </tr>
+                <tr>
+                    <th>廠商</th>
+                    <th>發票號碼</th>
+                    <th>發票日期</th>
+                    <th class="text-end">金額</th>
+                    <th class="text-end">稅額</th>
+                    <th class="text-end">總計</th>
+                    <th style="width:5%"></th>
+                    <th>到期日</th>
+                    <th>付款狀態</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot id="tableFoot" class="table-light fw-bold">
+                <tr>
+                    <td colspan="3" class="text-end">總計：</td>
+                    <td class="text-end" id="sumAmount">0</td>
+                    <td class="text-end" id="sumTax">0</td>
+                    <td class="text-end" id="sumTotal">0</td>
+                    <td></td>
+                    <td colspan="3"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paymentModalTitle">付款處理</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="paymentId">
+                <input type="hidden" id="editMode" value="pay">
+                <div class="mb-3">
+                    <label class="form-label">付款狀態</label>
+                    <select class="form-select" id="paid_status">
+                        <option value="1">已付款</option>
+                        <option value="0">未付款</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">付款日期</label>
+                    <input type="date" class="form-control" id="paid_date">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">付款備註</label>
+                    <textarea class="form-control" id="paid_notes" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button class="btn btn-success" onclick="savePayment()">確認</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const vendorMap = {};
+let allInvoices = [];
+
+function calcTotal() {
+    const amt = parseInt(document.getElementById('amount').value) || 0;
+    const tax = Math.round(amt * 0.05);
+    document.getElementById('tax').value = tax;
+    document.getElementById('total_amount').value = amt + tax;
+}
+
+function parseDays(terms) {
+    if (!terms) return 0;
+    const m = terms.match(/(\d+)/);
+    return m ? parseInt(m[1]) : 0;
+}
+
+function calcDueDate() {
+    // due_date is auto-calculated in save()
+}
+
+function loadVendors() {
+    axios.get('/api/vendors').then(res => {
+        const sel = document.getElementById('vendor_id');
+        sel.innerHTML = '<option value="">選擇廠商</option>';
+        res.data.filter(v => v.is_active).forEach(v => {
+            vendorMap[v.id] = v;
+            sel.innerHTML += `<option value="${v.id}">${v.code} - ${v.name}</option>`;
+        });
+    });
+}
+
+function resetForm() {
+    document.getElementById('editId').value = '';
+    document.getElementById('invoice_no').value = '';
+    document.getElementById('invoice_date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('amount').value = '';
+    document.getElementById('tax').value = '';
+    document.getElementById('total_amount').value = '';
+    document.getElementById('vendor_id').value = '';
+    document.getElementById('vendor_id').disabled = false;
+    loadVendors();
+}
+
+function renderRows(rows) {
+    const tbody = document.querySelector('#dataTable tbody');
+    tbody.innerHTML = rows.map(r => `<tr class="${r.is_paid ? 'table-success' : ''}">
+        <td>${r.vendor_name}</td>
+        <td>${r.invoice_no}</td>
+        <td>${r.invoice_date}</td>
+        <td class="text-end">${Math.round(r.amount)}</td>
+        <td class="text-end">${Math.round(r.tax)}</td>
+        <td class="text-end">${Math.round(r.total_amount)}</td>
+        <td></td>
+        <td>${r.due_date || '-'}</td>
+        <td>${r.is_paid ? '<span class="badge bg-success">已付款</span>' : '<span class="badge bg-warning">未付款</span>'}</td>
+        <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="toggleRowMenu(this, ${r.id}, ${r.is_paid})">編輯</button>
+            <span class="row-actions" style="display:none">
+                ${r.is_paid ? `<button class="btn btn-sm btn-outline-warning ms-1" onclick="markUnpaid(${r.id})">未付款</button>` : `<button class="btn btn-sm btn-outline-success ms-1" onclick="showPayment(${r.id})">付款</button>`}
+                <button class="btn btn-sm btn-outline-danger ms-1" onclick="del(${r.id})">刪除</button>
+            </span>
+        </td>
+    </tr>`).join('');
+    const sumAmt = rows.reduce((s, r) => s + Math.round(r.amount), 0);
+    const sumTax = rows.reduce((s, r) => s + Math.round(r.tax), 0);
+    const sumTotal = rows.reduce((s, r) => s + Math.round(r.total_amount), 0);
+    document.getElementById('sumAmount').textContent = sumAmt;
+    document.getElementById('sumTax').textContent = sumTax;
+    document.getElementById('sumTotal').textContent = sumTotal;
+}
+
+function loadVendorFilter() {
+    axios.get('/api/vendors').then(res => {
+        const sel = document.getElementById('vendorFilter');
+        res.data.filter(v => v.is_active).forEach(v => {
+            sel.innerHTML += `<option value="${v.id}">${v.name}</option>`;
+        });
+    });
+}
+
+function applyFilters() {
+    let filtered = allInvoices;
+    const vid = document.getElementById('vendorFilter').value;
+    if (vid) {
+        filtered = filtered.filter(r => r.vendor_id == vid);
+    }
+    const period = document.getElementById('periodFilter').value;
+    if (period) {
+        const months = period.split(',').map(Number);
+        filtered = filtered.filter(r => {
+            if (!r.invoice_date) return false;
+            const m = parseInt(r.invoice_date.slice(5,7));
+            return months.includes(m);
+        });
+    }
+    const duePeriod = document.getElementById('duePeriodFilter').value;
+    if (duePeriod) {
+        const months = duePeriod.split(',').map(Number);
+        filtered = filtered.filter(r => {
+            if (!r.due_date) return false;
+            const m = parseInt(r.due_date.slice(5,7));
+            return months.includes(m);
+        });
+    }
+    const paidVal = document.getElementById('paidFilter').value;
+    if (paidVal !== '') {
+        const isPaid = paidVal === '1';
+        filtered = filtered.filter(r => r.is_paid === isPaid);
+    }
+    renderRows(filtered);
+}
+
+function loadData() {
+    axios.get('/api/vendor-invoices').then(res => {
+        allInvoices = res.data;
+        applyFilters();
+    });
+}
+
+function save() {
+    const vid = parseInt(document.getElementById('vendor_id').value);
+    const invDate = document.getElementById('invoice_date').value;
+    let dueDate = null;
+    if (vid && invDate && vendorMap[vid]) {
+        const days = parseDays(vendorMap[vid].payment_terms);
+        if (days) {
+            const d = new Date(invDate);
+            d.setDate(d.getDate() + days);
+            dueDate = d.toISOString().slice(0,10);
+        }
+    }
+    const data = {
+        vendor_id: vid,
+        invoice_no: document.getElementById('invoice_no').value,
+        invoice_date: invDate,
+        amount: parseInt(document.getElementById('amount').value) || 0,
+        tax: parseInt(document.getElementById('tax').value) || 0,
+        total_amount: parseInt(document.getElementById('total_amount').value) || 0,
+        due_date: dueDate,
+    };
+    if (!data.vendor_id || !data.invoice_no) { alert('請填寫廠商與發票號碼'); return; }
+    axios.post('/api/vendor-invoices', data).then(() => { resetForm(); loadData(); })
+      .catch(err => alert(err.response?.data?.detail || '操作失敗'));
+}
+
+function showPayment(id) {
+    document.getElementById('editMode').value = 'pay';
+    document.getElementById('paymentModalTitle').textContent = '付款處理';
+    document.getElementById('paymentId').value = id;
+    document.getElementById('paid_status').value = '1';
+    document.getElementById('paid_date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('paid_notes').value = '';
+    new bootstrap.Modal(document.getElementById('paymentModal')).show();
+}
+
+function showEdit(id) {
+    document.getElementById('editMode').value = 'edit';
+    document.getElementById('paymentModalTitle').textContent = '編輯付款狀態';
+    axios.get('/api/vendor-invoices/' + id).then(res => {
+        const d = res.data;
+        document.getElementById('paymentId').value = d.id;
+        document.getElementById('paid_status').value = d.is_paid ? '1' : '0';
+        document.getElementById('paid_date').value = d.paid_date || new Date().toISOString().slice(0,10);
+        document.getElementById('paid_notes').value = d.paid_notes || '';
+        new bootstrap.Modal(document.getElementById('paymentModal')).show();
+    });
+}
+
+function savePayment() {
+    const id = document.getElementById('paymentId').value;
+    const isPaid = document.getElementById('paid_status').value === '1';
+    axios.put('/api/vendor-invoices/' + id + '/payment', {
+        is_paid: isPaid,
+        paid_date: isPaid ? document.getElementById('paid_date').value : null,
+        paid_notes: document.getElementById('paid_notes').value,
+    }).then(() => {
+        bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+        loadData();
+    }).catch(err => alert(err.response?.data?.detail || '操作失敗'));
+}
+
+function markUnpaid(id) {
+    if (!confirm('確定設為未付款？')) return;
+    axios.put('/api/vendor-invoices/' + id + '/payment', {
+        is_paid: false,
+        paid_date: null,
+        paid_notes: '',
+    }).then(() => {
+        loadData();
+    }).catch(err => alert(err.response?.data?.detail || '操作失敗'));
+}
+
+function toggleRowMenu(btn, id, isPaid) {
+    const span = btn.nextElementSibling;
+    const isVisible = span.style.display !== 'none';
+    document.querySelectorAll('.row-actions').forEach(s => s.style.display = 'none');
+    if (!isVisible) {
+        span.style.display = 'inline';
+    }
+}
+
+function printPDF() {
+    window.print();
+}
+
+function del(id) {
+    if (!confirm('確定刪除此發票？')) return;
+    axios.delete('/api/vendor-invoices/' + id).then(() => loadData()).catch(err => alert(err.response?.data?.detail || '刪除失敗'));
+}
+
+resetForm();
+loadVendorFilter();
+loadData();
+</script>
+{% endblock %}

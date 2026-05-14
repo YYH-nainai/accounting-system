@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}員工管理 - 會計管理系統{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="page-title mb-0">員工管理</h4>
+</div>
+
+<div class="card border-2 border-dashed mb-4" style="border-style: dashed !important;">
+    <div class="card-body">
+        <h6 class="card-title text-muted mb-3"><i class="bi bi-plus-circle"></i> 新增員工</h6>
+        <input type="hidden" id="editId">
+        <div class="row">
+            <div class="col-md-2 mb-2">
+                <label class="form-label small">員工編號</label>
+                <input type="text" class="form-control form-control-sm" id="code" required>
+            </div>
+            <div class="col-md-3 mb-2">
+                <label class="form-label small">姓名</label>
+                <input type="text" class="form-control form-control-sm" id="name" required>
+            </div>
+            <div class="col-md-3 mb-2">
+                <label class="form-label small">身份證字號</label>
+                <input type="text" class="form-control form-control-sm" id="id_number">
+            </div>
+            <div class="col-md-2 mb-2">
+                <label class="form-label small">職位</label>
+                <input type="text" class="form-control form-control-sm" id="position">
+            </div>
+            <div class="col-md-2 mb-2">
+                <label class="form-label small">電話</label>
+                <input type="text" class="form-control form-control-sm" id="phone">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                <label class="form-label small">Email</label>
+                <input type="email" class="form-control form-control-sm" id="email">
+            </div>
+            <div class="col-md-4 mb-2">
+                <label class="form-label small">地址</label>
+                <input type="text" class="form-control form-control-sm" id="address">
+            </div>
+            <div class="col-md-2 mb-2">
+                <label class="form-label small">月薪</label>
+                <input type="number" step="1" class="form-control form-control-sm" id="base_salary">
+            </div>
+            <div class="col-md-1 mb-2">
+                <label class="form-label small">勞保級距</label>
+                <select class="form-select form-select-sm" id="labor_grade_id"><option value="">不適用</option></select>
+            </div>
+            <div class="col-md-1 mb-2">
+                <label class="form-label small">健保級距</label>
+                <select class="form-select form-select-sm" id="health_grade_id"><option value="">不適用</option></select>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12 mb-2 d-flex justify-content-end">
+                <button class="btn btn-primary btn-sm me-2" onclick="save()"><i class="bi bi-check-lg"></i> 儲存</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="resetForm()"><i class="bi bi-x-lg"></i> 清除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover" id="dataTable">
+            <thead>
+                <tr>
+                    <th>編號</th>
+                    <th>姓名</th>
+                    <th>職位</th>
+                    <th>電話</th>
+                    <th class="text-end">月薪</th>
+                    <th>勞保級距</th>
+                    <th>健保級距</th>
+                    <th>狀態</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadGrades() {
+    return Promise.all([
+        axios.get('/api/insurance/grades?type=labor'),
+        axios.get('/api/insurance/grades?type=health'),
+    ]).then(([laborRes, healthRes]) => {
+        const laborSel = document.getElementById('labor_grade_id');
+        const healthSel = document.getElementById('health_grade_id');
+        laborSel.innerHTML = '<option value="">不適用</option>' + laborRes.data.map(g =>
+            `<option value="${g.id}">${g.year}年 第${g.grade}級 $${g.insured_amount.toFixed(0)}</option>`).join('');
+        healthSel.innerHTML = '<option value="">不適用</option>' + healthRes.data.map(g =>
+            `<option value="${g.id}">${g.year}年 第${g.grade}級 $${g.insured_amount.toFixed(0)}</option>`).join('');
+    });
+}
+
+function loadData() {
+    axios.get('/api/employees').then(res => {
+        const tbody = document.querySelector('#dataTable tbody');
+        tbody.innerHTML = res.data.map(e => `<tr>
+            <td>${e.code}</td>
+            <td>${e.name}</td>
+            <td>${e.position || '-'}</td>
+            <td>${e.phone || '-'}</td>
+            <td class="text-end">${Math.round(e.base_salary)}</td>
+            <td>${e.labor_grade_id ? '已設定' : '-'}</td>
+            <td>${e.health_grade_id ? '已設定' : '-'}</td>
+            <td>${e.is_active ? '<span class="text-success">在職</span>' : '<span class="text-danger">離職</span>'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="edit(${e.id})">編輯</button>
+                <button class="btn btn-sm btn-outline-info" onclick="viewInsurance(${e.id})">勞健保</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="del(${e.id})">刪除</button>
+            </td>
+        </tr>`).join('');
+    });
+}
+
+function resetForm() {
+    document.getElementById('editId').value = '';
+    document.getElementById('code').value = '';
+    document.getElementById('code').disabled = false;
+    document.getElementById('name').value = '';
+    document.getElementById('id_number').value = '';
+    document.getElementById('position').value = '';
+    document.getElementById('phone').value = '';
+    document.getElementById('email').value = '';
+    document.getElementById('address').value = '';
+    document.getElementById('base_salary').value = '';
+    loadGrades().then(() => {
+        document.getElementById('labor_grade_id').value = '';
+        document.getElementById('health_grade_id').value = '';
+    });
+}
+
+function fillForm(data) {
+    document.getElementById('editId').value = data.id;
+    document.getElementById('code').value = data.code;
+    document.getElementById('code').disabled = true;
+    document.getElementById('name').value = data.name;
+    document.getElementById('id_number').value = data.id_number || '';
+    document.getElementById('position').value = data.position || '';
+    document.getElementById('phone').value = data.phone || '';
+    document.getElementById('email').value = data.email || '';
+    document.getElementById('address').value = data.address || '';
+    document.getElementById('base_salary').value = data.base_salary;
+    loadGrades().then(() => {
+        document.getElementById('labor_grade_id').value = data.labor_grade_id || '';
+        document.getElementById('health_grade_id').value = data.health_grade_id || '';
+    });
+}
+
+function edit(id) {
+    axios.get('/api/employees/' + id).then(res => fillForm(res.data));
+}
+
+function save() {
+    const id = document.getElementById('editId').value;
+    const data = {
+        code: document.getElementById('code').value,
+        name: document.getElementById('name').value,
+        id_number: document.getElementById('id_number').value,
+        position: document.getElementById('position').value,
+        phone: document.getElementById('phone').value,
+        email: document.getElementById('email').value,
+        address: document.getElementById('address').value,
+        base_salary: parseInt(document.getElementById('base_salary').value) || 0,
+        labor_grade_id: parseInt(document.getElementById('labor_grade_id').value) || null,
+        health_grade_id: parseInt(document.getElementById('health_grade_id').value) || null,
+    };
+    if (!data.code || !data.name) { alert('請填寫員工編號與姓名'); return; }
+    const req = id ? axios.put('/api/employees/' + id, data) : axios.post('/api/employees', data);
+    req.then(() => { resetForm(); loadData(); })
+      .catch(err => alert(err.response?.data?.detail || '操作失敗'));
+}
+
+function del(id) {
+    if (!confirm('確定刪除此員工？')) return;
+    axios.delete('/api/employees/' + id).then(() => loadData()).catch(err => alert(err.response?.data?.detail || '刪除失敗'));
+}
+
+function viewInsurance(id) {
+    axios.get('/api/employees/' + id + '/insurance-detail').then(res => {
+        const d = res.data;
+        let html = `<table class="table table-bordered">
+            <tr><th>項目</th><th>月薪</th><th>投保金額</th><th>費率</th><th>員工自付額</th><th>雇主負擔</th></tr>`;
+        if (d.labor) {
+            html += `<tr>
+                <td>勞保（第${d.labor.grade}級）</td>
+                <td>${Math.round(d.base_salary)}</td>
+                <td>${Math.round(d.labor.insured_amount)}</td>
+                <td>${d.labor.rate_percent}%</td>
+                <td>${Math.round(d.labor.employee_premium)}</td>
+                <td>${Math.round(d.labor.employer_premium)}</td>
+            </tr>`;
+        }
+        if (d.health) {
+            html += `<tr>
+                <td>健保（第${d.health.grade}級）</td>
+                <td>${Math.round(d.base_salary)}</td>
+                <td>${Math.round(d.health.insured_amount)}</td>
+                <td>${d.health.rate_percent}%</td>
+                <td>${Math.round(d.health.employee_premium)}</td>
+                <td>${Math.round(d.health.employer_premium)}</td>
+            </tr>`;
+        }
+        if (!d.labor && !d.health) {
+            html += '<tr><td colspan="6" class="text-center">尚未設定勞健保級距</td></tr>';
+        }
+        html += '</table>';
+        Swal.fire({ title: '勞健保明細', html, confirmButtonText: '關閉' });
+    });
+}
+
+loadGrades();
+loadData();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}
