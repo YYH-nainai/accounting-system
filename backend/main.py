@@ -17,7 +17,9 @@ app = FastAPI(title="會計管理系統")
 
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "accounting-system-secret-key-change-in-production"))
 
-app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "..", "frontend", "static")), name="static")
+static_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "static")
+if os.path.isdir(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "..", "frontend", "templates"))
 
 app.include_router(accounts.router)
