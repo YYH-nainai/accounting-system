@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}會計科目 - 會計管理系統{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="page-title mb-0">會計科目</h4>
+    <button class="btn btn-primary" onclick="showAddModal()"><i class="bi bi-plus"></i> 新增科目</button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover" id="accountsTable">
+            <thead>
+                <tr>
+                    <th>科目代碼</th>
+                    <th>科目名稱</th>
+                    <th>類別</th>
+                    <th>狀態</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="accountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">新增科目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editId">
+                <div class="mb-3">
+                    <label class="form-label">科目代碼</label>
+                    <input type="text" class="form-control" id="code" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">科目名稱</label>
+                    <input type="text" class="form-control" id="name" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">類別</label>
+                    <select class="form-select" id="type">
+                        <option value="asset">資產</option>
+                        <option value="liability">負債</option>
+                        <option value="equity">權益</option>
+                        <option value="revenue">收入</option>
+                        <option value="expense">費用</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">說明</label>
+                    <textarea class="form-control" id="description" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button class="btn btn-primary" onclick="saveAccount()">儲存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const typeLabels = { asset: '資產', liability: '負債', equity: '權益', revenue: '收入', expense: '費用' };
+const typeBadges = { asset: 'badge-asset', liability: 'badge-liability', equity: 'badge-equity', revenue: 'badge-revenue', expense: 'badge-expense' };
+
+function loadAccounts() {
+    axios.get('/api/accounts').then(res => {
+        const tbody = document.querySelector('#accountsTable tbody');
+        tbody.innerHTML = res.data.map(a => `<tr>
+            <td>${a.code}</td>
+            <td>${a.name}</td>
+            <td><span class="badge ${typeBadges[a.type]}">${typeLabels[a.type]}</span></td>
+            <td>${a.is_active ? '<span class="text-success">啟用</span>' : '<span class="text-danger">停用</span>'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="editAccount(${a.id})">編輯</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount(${a.id})">刪除</button>
+            </td>
+        </tr>`).join('');
+    });
+}
+
+function showAddModal() {
+    document.getElementById('modalTitle').textContent = '新增科目';
+    document.getElementById('editId').value = '';
+    document.getElementById('code').value = '';
+    document.getElementById('name').value = '';
+    document.getElementById('type').value = 'asset';
+    document.getElementById('description').value = '';
+    document.getElementById('code').disabled = false;
+    new bootstrap.Modal(document.getElementById('accountModal')).show();
+}
+
+function editAccount(id) {
+    axios.get('/api/accounts/' + id).then(res => {
+        const a = res.data;
+        document.getElementById('modalTitle').textContent = '編輯科目';
+        document.getElementById('editId').value = a.id;
+        document.getElementById('code').value = a.code;
+        document.getElementById('name').value = a.name;
+        document.getElementById('type').value = a.type;
+        document.getElementById('description').value = a.description || '';
+        document.getElementById('code').disabled = true;
+        new bootstrap.Modal(document.getElementById('accountModal')).show();
+    });
+}
+
+function saveAccount() {
+    const id = document.getElementById('editId').value;
+    const data = {
+        code: document.getElementById('code').value,
+        name: document.getElementById('name').value,
+        type: document.getElementById('type').value,
+        description: document.getElementById('description').value,
+    };
+    if (!data.code || !data.name) { alert('請填寫科目代碼與名稱'); return; }
+    const req = id ? axios.put('/api/accounts/' + id, data) : axios.post('/api/accounts', data);
+    req.then(() => { bootstrap.Modal.getInstance(document.getElementById('accountModal')).hide(); loadAccounts(); })
+      .catch(err => alert(err.response?.data?.detail || '操作失敗'));
+}
+
+function deleteAccount(id) {
+    if (!confirm('確定刪除此科目？')) return;
+    axios.delete('/api/accounts/' + id).then(() => loadAccounts()).catch(err => alert(err.response?.data?.detail || '刪除失敗'));
+}
+
+loadAccounts();
+</script>
+{% endblock %}

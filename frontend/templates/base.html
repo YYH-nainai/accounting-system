@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}會計管理系統{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .storage-warn { display: none; }
+        .storage-danger { display: none; }
+        body { background: #f5f6fa; }
+        .sidebar { min-height: 100vh; background: #2c3e50; padding-top: 1rem; }
+        .sidebar .nav-link { color: #bdc3c7; padding: 0.7rem 1.2rem; font-size: 0.95rem; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background: #34495e; }
+        .sidebar .nav-link i { margin-right: 8px; width: 20px; text-align: center; }
+        .sidebar .brand { color: #fff; font-size: 1.2rem; padding: 0 1.2rem 1rem; border-bottom: 1px solid #34495e; margin-bottom: 0.5rem; }
+        .main-content { padding: 2rem; }
+        .card { border: none; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
+        .card-header { background: #fff; border-bottom: 2px solid #f0f0f0; font-weight: 600; }
+        .table th { background: #f8f9fa; }
+        .page-title { color: #2c3e50; font-weight: 600; margin-bottom: 1.5rem; }
+        .badge-asset { background: #3498db; }
+        .badge-liability { background: #e74c3c; }
+        .badge-equity { background: #2ecc71; }
+        .badge-revenue { background: #f39c12; }
+        .badge-expense { background: #9b59b6; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-2 sidebar d-none d-md-block">
+                <div class="brand"><i class="bi bi-calculator"></i> 會計系統</div>
+                <ul class="nav flex-column">
+                    <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-house"></i>首頁</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/accounts"><i class="bi bi-journal-text"></i>會計科目</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/vouchers"><i class="bi bi-receipt"></i>傳票管理</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/ledger"><i class="bi bi-book"></i>總帳查詢</a></li>
+                    <li class="nav-item"><hr style="border-color:#34495e; margin:0.5rem 1rem;"></li>
+                    <li class="nav-item"><a class="nav-link" href="/reports/trial-balance"><i class="bi bi-list-check"></i>試算表</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/reports/income-statement"><i class="bi bi-graph-up"></i>損益表</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/reports/balance-sheet"><i class="bi bi-pie-chart"></i>資產負債表</a></li>
+                    <li class="nav-item"><hr style="border-color:#34495e; margin:0.5rem 1rem;"></li>
+                    <li class="nav-item"><a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i>登出</a></li>
+                </ul>
+            </div>
+            <div class="col-md-10 main-content">
+                <div id="storageAlert" class="storage-warn"></div>
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.7.7/dist/axios.min.js"></script>
+    <script>
+    axios.get('/api/storage').then(res => {
+        const d = res.data;
+        if (d.danger) {
+            document.getElementById('storageAlert').innerHTML =
+                '<div class="alert alert-danger d-flex align-items-center"><i class="bi bi-exclamation-triangle-fill me-2"></i> 資料庫已使用 ' + d.used_mb + 'MB / ' + d.limit_mb + 'MB（' + d.percent + '%），即將達到上限，請儘快備份或升級方案！</div>';
+            document.getElementById('storageAlert').style.display = 'block';
+        } else if (d.warn) {
+            document.getElementById('storageAlert').innerHTML =
+                '<div class="alert alert-warning d-flex align-items-center"><i class="bi bi-info-circle-fill me-2"></i> 資料庫已使用 ' + d.used_mb + 'MB / ' + d.limit_mb + 'MB（' + d.percent + '%），請注意使用空間。</div>';
+            document.getElementById('storageAlert').style.display = 'block';
+        }
+    });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

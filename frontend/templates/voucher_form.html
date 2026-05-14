@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}{{ '編輯' if voucher_id else '新增' }}傳票 - 會計管理系統{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="page-title mb-0">{{ '編輯' if voucher_id else '新增' }}傳票</h4>
+    <a href="/vouchers" class="btn btn-outline-secondary">返回</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form id="voucherForm">
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">日期</label>
+                    <input type="date" class="form-control" id="voucherDate" required>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">摘要</label>
+                    <input type="text" class="form-control" id="voucherDesc" placeholder="傳票摘要">
+                </div>
+            </div>
+
+            <h5 class="mb-3">分錄</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered" id="entriesTable">
+                    <thead>
+                        <tr>
+                            <th style="width:35%">會計科目</th>
+                            <th style="width:20%">借方金額</th>
+                            <th style="width:20%">貸方金額</th>
+                            <th style="width:20%">說明</th>
+                            <th style="width:5%"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="entriesBody">
+                        <tr class="entry-row">
+                            <td>
+                                <select class="form-select account-select"></select>
+                            </td>
+                            <td><input type="number" class="form-control debit" step="0.01" min="0" oninput="onAmountChange(this)"></td>
+                            <td><input type="number" class="form-control credit" step="0.01" min="0" oninput="onAmountChange(this)"></td>
+                            <td><input type="text" class="form-control entry-desc"></td>
+                            <td><button type="button" class="btn btn-outline-danger btn-sm" onclick="removeRow(this)"><i class="bi bi-x"></i></button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <button type="button" class="btn btn-outline-success btn-sm mb-3" onclick="addRow()"><i class="bi bi-plus"></i> 新增分錄</button>
+
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <span class="fw-bold">借方合計: </span><span id="totalDebit" class="text-danger">0.00</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="fw-bold">貸方合計: </span><span id="totalCredit" class="text-primary">0.00</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="fw-bold">差額: </span><span id="diff" class="text-success">0.00</span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">儲存傳票</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let accounts = [];
+
+axios.get('/api/accounts').then(res => {
+    accounts = res.data;
+    document.querySelectorAll('.account-select').forEach(sel => populateSelect(sel));
+});
+
+function populateSelect(sel) {
+    sel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.code} ${a.name}</option>`).join('');
+}
+
+function addRow() {
+    const tbody = document.getElementById('entriesBody');
+    const row = document.querySelector('.entry-row').cloneNode(true);
+    row.querySelectorAll('input').forEach(i => i.value = '');
+    const sel = row.querySelector('.account-select');
+    populateSelect(sel);
+    tbody.appendChild(row);
+}
+
+function removeRow(btn) {
+    const rows = document.querySelectorAll('.entry-row');
+    if (rows.length <= 1) return;
+    btn.closest('tr').remove();
+    calculateTotals();
+}
+
+function onAmountChange(el) {
+    const row = el.closest('tr');
+    const debit = row.querySelector('.debit');
+    const credit = row.querySelector('.credit');
+    if (el.classList.contains('debit') && parseFloat(debit.value) > 0) {
+        credit.value = '';
+        credit.disabled = true;
+    } else if (el.classList.contains('credit') && parseFloat(credit.value) > 0) {
+        debit.value = '';
+        debit.disabled = true;
+    } else {
+        debit.disabled = false;
+        credit.disabled = false;
+    }
+    calculateTotals();
+}
+
+function calculateTotals() {
+    let totalDebit = 0, totalCredit = 0;
+    document.querySelectorAll('.entry-row').forEach(row => {
+        totalDebit += parseFloat(row.querySelector('.debit').value) || 0;
+        totalCredit += parseFloat(row.querySelector('.credit').value) || 0;
+    });
+    document.getElementById('totalDebit').textContent = totalDebit.toFixed(2);
+    document.getElementById('totalCredit').textContent = totalCredit.toFixed(2);
+    document.getElementById('diff').textContent = (totalDebit - totalCredit).toFixed(2);
+}
+
+document.getElementById('voucherForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const entries = [];
+    document.querySelectorAll('.entry-row').forEach(row => {
+        const debit = parseFloat(row.querySelector('.debit').value) || 0;
+        const credit = parseFloat(row.querySelector('.credit').value) || 0;
+        if (debit === 0 && credit === 0) return;
+        entries.push({
+            account_id: parseInt(row.querySelector('.account-select').value),
+            debit: debit,
+            credit: credit,
+            description: row.querySelector('.entry-desc').value || null,
+        });
+    });
+
+    if (entries.length === 0) { alert('請至少輸入一筆分錄'); return; }
+
+    const totalDebit = entries.reduce((s, e) => s + e.debit, 0);
+    const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
+    if (Math.abs(totalDebit - totalCredit) > 0.01) { alert('借貸不平衡！'); return; }
+
+    const data = {
+        date: document.getElementById('voucherDate').value,
+        description: document.getElementById('voucherDesc').value || null,
+        entries: entries,
+    };
+
+    axios.post('/api/vouchers', data)
+        .then(() => { window.location.href = '/vouchers'; })
+        .catch(err => alert(err.response?.data?.detail || '儲存失敗'));
+});
+
+document.getElementById('voucherDate').value = new Date().toISOString().split('T')[0];
+</script>
+{% endblock %}

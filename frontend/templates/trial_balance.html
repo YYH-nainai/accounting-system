@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}試算表 - 會計管理系統{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="page-title mb-0">試算表</h4>
+    <div>
+        <label class="form-label me-2">截至日期</label>
+        <input type="date" id="asOfDate" class="form-control d-inline-block" style="width:auto; display:inline!important;">
+        <button class="btn btn-primary" onclick="loadReport()">查詢</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover" id="reportTable">
+            <thead>
+                <tr>
+                    <th>科目代碼</th>
+                    <th>科目名稱</th>
+                    <th class="text-end">借方金額</th>
+                    <th class="text-end">貸方金額</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot class="fw-bold">
+                <tr>
+                    <td colspan="2">合計</td>
+                    <td class="text-end text-danger" id="totalDebit">0.00</td>
+                    <td class="text-end text-primary" id="totalCredit">0.00</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadReport() {
+    const asOf = document.getElementById('asOfDate').value;
+    let url = '/api/reports/trial-balance';
+    if (asOf) url += '?as_of=' + asOf;
+    axios.get(url).then(res => {
+        const data = res.data;
+        const tbody = document.querySelector('#reportTable tbody');
+        tbody.innerHTML = data.rows.map(r => `<tr>
+            <td>${r.code}</td>
+            <td>${r.name}</td>
+            <td class="text-end text-danger">${r.debit ? r.debit.toFixed(2) : ''}</td>
+            <td class="text-end text-primary">${r.credit ? r.credit.toFixed(2) : ''}</td>
+        </tr>`).join('');
+        document.getElementById('totalDebit').textContent = data.total_debit.toFixed(2);
+        document.getElementById('totalCredit').textContent = data.total_credit.toFixed(2);
+    });
+}
+loadReport();
+</script>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}損益表 - 會計管理系統{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="page-title mb-0">損益表</h4>
+    <div>
+        <label class="form-label me-2">期間</label>
+        <input type="date" id="startDate" class="form-control d-inline-block" style="width:auto; display:inline!important;">
+        <span class="mx-1">~</span>
+        <input type="date" id="endDate" class="form-control d-inline-block" style="width:auto; display:inline!important;">
+        <button class="btn btn-primary" onclick="loadReport()">查詢</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">收入</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" id="revenueTable">
+            <thead><tr><th>科目</th><th class="text-end">金額</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">費用</div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" id="expenseTable">
+            <thead><tr><th>科目</th><th class="text-end">金額</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-body text-end">
+        <h5>收入總計: <span id="totalRevenue" class="text-success">0.00</span></h5>
+        <h5>費用總計: <span id="totalExpense" class="text-danger">0.00</span></h5>
+        <h4>本期淨利: <span id="netIncome" class="fw-bold">0.00</span></h4>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadReport() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    let url = '/api/reports/income-statement';
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const qs = params.toString();
+    if (qs) url += '?' + qs;
+
+    axios.get(url).then(res => {
+        const data = res.data;
+        document.querySelector('#revenueTable tbody').innerHTML = data.revenues.map(r =>
+            `<tr><td>${r.code} ${r.name}</td><td class="text-end">${r.amount.toFixed(2)}</td></tr>`
+        ).join('');
+        document.querySelector('#expenseTable tbody').innerHTML = data.expenses.map(r =>
+            `<tr><td>${r.code} ${r.name}</td><td class="text-end">${r.amount.toFixed(2)}</td></tr>`
+        ).join('');
+        document.getElementById('totalRevenue').textContent = data.total_revenue.toFixed(2);
+        document.getElementById('totalExpense').textContent = data.total_expense.toFixed(2);
+        document.getElementById('netIncome').textContent = data.net_income.toFixed(2);
+        document.getElementById('netIncome').style.color = data.net_income >= 0 ? '#2ecc71' : '#e74c3c';
+    });
+}
+loadReport();
+</script>
+{% endblock %}

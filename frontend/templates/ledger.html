@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}總帳查詢 - 會計管理系統{% endblock %}
+{% block content %}
+<h4 class="page-title">總帳查詢</h4>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <label class="form-label">會計科目</label>
+                <select class="form-select" id="accountSelect"></select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">開始日期</label>
+                <input type="date" class="form-control" id="startDate">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">結束日期</label>
+                <input type="date" class="form-control" id="endDate">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" onclick="queryLedger()">查詢</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header" id="ledgerHeader">請選擇科目查詢</div>
+    <div class="card-body">
+        <table class="table table-hover" id="ledgerTable">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>傳票編號</th>
+                    <th>摘要</th>
+                    <th>借方</th>
+                    <th>貸方</th>
+                    <th>餘額</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let accounts = [];
+
+axios.get('/api/accounts').then(res => {
+    accounts = res.data;
+    const sel = document.getElementById('accountSelect');
+    sel.innerHTML = '<option value="">-- 請選擇科目 --</option>' +
+        accounts.map(a => `<option value="${a.id}">${a.code} ${a.name}</option>`).join('');
+});
+
+function queryLedger() {
+    const accountId = document.getElementById('accountSelect').value;
+    if (!accountId) { alert('請選擇科目'); return; }
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    let url = '/api/ledger/' + accountId;
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const qs = params.toString();
+    if (qs) url += '?' + qs;
+
+    axios.get(url).then(res => {
+        const data = res.data;
+        document.getElementById('ledgerHeader').textContent = `${data.account.code} ${data.account.name} - 明細帳`;
+        const tbody = document.querySelector('#ledgerTable tbody');
+        if (data.entries.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">無資料</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.entries.map(e => `<tr>
+            <td>${e.date}</td>
+            <td>${e.voucher_no}</td>
+            <td>${e.description || e.voucher_description || ''}</td>
+            <td class="text-danger">${e.debit ? e.debit.toFixed(2) : ''}</td>
+            <td class="text-primary">${e.credit ? e.credit.toFixed(2) : ''}</td>
+            <td class="fw-bold">${e.balance.toFixed(2)}</td>
+        </tr>`).join('');
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}資產負債表 - 會計管理系統{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="page-title mb-0">資產負債表</h4>
+    <div>
+        <label class="form-label me-2">截至日期</label>
+        <input type="date" id="asOfDate" class="form-control d-inline-block" style="width:auto; display:inline!important;">
+        <button class="btn btn-primary" onclick="loadReport()">查詢</button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">資產</div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0" id="assetTable">
+                    <thead><tr><th>科目</th><th class="text-end">金額</th></tr></thead>
+                    <tbody></tbody>
+                    <tfoot><tr class="fw-bold"><td>資產總計</td><td class="text-end" id="totalAssets">0.00</td></tr></tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">負債及權益</div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0" id="liabilityTable">
+                    <thead><tr><th>科目</th><th class="text-end">金額</th></tr></thead>
+                    <tbody></tbody>
+                    <tfoot>
+                        <tr class="fw-bold"><td>負債總計</td><td class="text-end" id="totalLiabilities">0.00</td></tr>
+                    </tfoot>
+                </table>
+                <table class="table table-hover mb-0" id="equityTable">
+                    <tbody></tbody>
+                    <tfoot><tr class="fw-bold"><td>權益總計</td><td class="text-end" id="totalEquity">0.00</td></tr></tfoot>
+                </table>
+                <div class="p-3 text-end">
+                    <h5>負債及權益總計: <span id="totalLiabilitiesEquity" class="fw-bold">0.00</span></h5>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function loadReport() {
+    const asOf = document.getElementById('asOfDate').value;
+    let url = '/api/reports/balance-sheet';
+    if (asOf) url += '?as_of=' + asOf;
+    axios.get(url).then(res => {
+        const data = res.data;
+        document.querySelector('#assetTable tbody').innerHTML = data.assets.map(a =>
+            `<tr><td>${a.code} ${a.name}</td><td class="text-end">${a.amount.toFixed(2)}</td></tr>`
+        ).join('');
+        document.querySelector('#liabilityTable tbody').innerHTML = data.liabilities.map(l =>
+            `<tr><td>${l.code} ${l.name}</td><td class="text-end">${l.amount.toFixed(2)}</td></tr>`
+        ).join('');
+        document.querySelector('#equityTable tbody').innerHTML = data.equities.map(e =>
+            `<tr><td>${e.code} ${e.name}</td><td class="text-end">${e.amount.toFixed(2)}</td></tr>`
+        ).join('');
+        document.getElementById('totalAssets').textContent = data.total_assets.toFixed(2);
+        document.getElementById('totalLiabilities').textContent = data.total_liabilities.toFixed(2);
+        document.getElementById('totalEquity').textContent = data.total_equity.toFixed(2);
+        document.getElementById('totalLiabilitiesEquity').textContent = (data.total_liabilities + data.total_equity).toFixed(2);
+    });
+}
+loadReport();
+</script>
+{% endblock %}
