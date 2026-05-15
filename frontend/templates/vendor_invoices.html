@@ -2,6 +2,9 @@
 {% block title %}廠商發票 - 會計管理系統{% endblock %}
 {% block content %}
 <style>
+#dataTable { font-size: 0.85rem; }
+#dataTable td:first-child, #dataTable td:nth-child(4) { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#vendor_id, #vendorFilter { max-width: 160px; }
 @media print {
     body * { visibility: hidden; }
     .main-content, .main-content * { visibility: visible; }
@@ -61,15 +64,15 @@
         <table class="table table-hover" id="dataTable">
             <colgroup>
                 <col style="width:12%">
-                <col style="width:11%">
-                <col style="width:9%">
-                <col style="width:7%">
-                <col style="width:7%">
-                <col style="width:7%">
-                <col style="width:5%">
+                <col style="width:10%">
                 <col style="width:13%">
+                <col style="width:13%">
+                <col style="width:5%">
+                <col style="width:7%">
+                <col style="width:7%">
+                <col style="width:7%">
                 <col style="width:12%">
-                <col style="width:17%">
+                <col style="width:14%">
             </colgroup>
             <thead>
                 <tr>
@@ -80,7 +83,7 @@
                     </th>
                     <th colspan="1"></th>
                     <th>
-                        <select class="form-select form-select-sm border-0 p-0 text-muted" id="periodFilter" onchange="applyFilters()" style="font-weight:400; font-size:inherit;">
+                        <select class="form-select form-select-sm border-0 p-0 text-muted" id="periodFilter" onchange="applyFilters()" style="font-weight:400; font-size:inherit; padding-right:18px!important;">
                             <option value="">全部發票日期</option>
                             <option value="01,02">115年1、2月</option>
                             <option value="03,04">115年3、4月</option>
@@ -90,10 +93,8 @@
                             <option value="11,12">115年11、12月</option>
                         </select>
                     </th>
-                    <th colspan="3"></th>
-                    <th></th>
                     <th>
-                        <select class="form-select form-select-sm border-0 p-0 text-muted" id="duePeriodFilter" onchange="applyFilters()" style="font-weight:400; font-size:inherit;">
+                        <select class="form-select form-select-sm border-0 p-0 text-muted" id="duePeriodFilter" onchange="applyFilters()" style="font-weight:400; font-size:inherit; padding-right:18px!important;">
                             <option value="">全部到期發票</option>
                             <option value="01,02">115年1、2月</option>
                             <option value="03,04">115年3、4月</option>
@@ -103,6 +104,8 @@
                             <option value="11,12">115年11、12月</option>
                         </select>
                     </th>
+                    <th></th>
+                    <th colspan="3"></th>
                     <th>
                         <select class="form-select form-select-sm border-0 p-0 text-muted" id="paidFilter" onchange="applyFilters()" style="font-weight:400; font-size:inherit;">
                             <option value="">全部狀態</option>
@@ -116,26 +119,25 @@
                 </tr>
                 <tr>
                     <th>廠商</th>
-                    <th>發票號碼</th>
-                    <th>發票日期</th>
-                    <th class="text-end">金額</th>
-                    <th class="text-end">稅額</th>
-                    <th class="text-end">總計</th>
+                    <th><div style="padding-right:30px">發票號碼</div></th>
+                    <th class="text-end"><span style="padding-right:40%">發票日期</span></th>
+                    <th class="text-end"><span style="padding-right:40%">到期日</span></th>
                     <th style="width:5%"></th>
-                    <th>到期日</th>
-                    <th>付款狀態</th>
-                    <th>操作</th>
+                    <th class="text-end"><span style="padding-right:40%">金額</span></th>
+                    <th class="text-end"><span style="padding-right:40%">稅額</span></th>
+                    <th class="text-end"><span style="padding-right:40%">總計</span></th>
+                    <th class="text-end"><span style="padding-right:40%">付款狀態</span></th>
+                    <th class="text-end"><span style="padding-right:40%">操作</span></th>
                 </tr>
             </thead>
             <tbody></tbody>
             <tfoot id="tableFoot" class="table-light fw-bold">
                 <tr>
-                    <td colspan="3" class="text-end">總計：</td>
+                    <td colspan="5" class="text-end">總計：</td>
                     <td class="text-end" id="sumAmount">0</td>
                     <td class="text-end" id="sumTax">0</td>
                     <td class="text-end" id="sumTotal">0</td>
-                    <td></td>
-                    <td colspan="3"></td>
+                    <td colspan="2"></td>
                 </tr>
             </tfoot>
         </table>
@@ -202,7 +204,7 @@ function loadVendors() {
     axios.get('/api/vendors').then(res => {
         const sel = document.getElementById('vendor_id');
         sel.innerHTML = '<option value="">選擇廠商</option>';
-        res.data.filter(v => v.is_active).forEach(v => {
+        res.data.forEach(v => {
             vendorMap[v.id] = v;
             sel.innerHTML += `<option value="${v.id}">${v.code} - ${v.name}</option>`;
         });
@@ -221,25 +223,33 @@ function resetForm() {
     loadVendors();
 }
 
+function toROC(dateStr) {
+    if (!dateStr) return '-';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const y = parseInt(parts[0]) - 1911;
+    return y + '-' + parts[1] + '-' + parts[2];
+}
+
 function renderRows(rows) {
     const tbody = document.querySelector('#dataTable tbody');
     tbody.innerHTML = rows.map(r => `<tr class="${r.is_paid ? 'table-success' : ''}">
         <td>${r.vendor_name}</td>
-        <td>${r.invoice_no}</td>
-        <td>${r.invoice_date}</td>
-        <td class="text-end">${Math.round(r.amount)}</td>
-        <td class="text-end">${Math.round(r.tax)}</td>
-        <td class="text-end">${Math.round(r.total_amount)}</td>
+        <td><div style="padding-right:30px">${r.invoice_no}</div></td>
+        <td class="text-end"><span style="padding-right:40%">${toROC(r.invoice_date)}</span></td>
+        <td class="text-end"><span style="padding-right:40%">${r.due_date ? toROC(r.due_date) : '-'}</span></td>
         <td></td>
-        <td>${r.due_date || '-'}</td>
-        <td>${r.is_paid ? '<span class="badge bg-success">已付款</span>' : '<span class="badge bg-warning">未付款</span>'}</td>
-        <td>
+        <td class="text-end"><span style="padding-right:40%">${Math.round(r.amount)}</span></td>
+        <td class="text-end"><span style="padding-right:40%">${Math.round(r.tax)}</span></td>
+        <td class="text-end"><span style="padding-right:40%">${Math.round(r.total_amount)}</span></td>
+        <td class="text-end"><span style="padding-right:40%">${r.is_paid ? '<span class="badge bg-success">已付款</span>' : '<span class="badge bg-warning">未付款</span>'}</span></td>
+        <td class="text-end"><span style="padding-right:40%">
             <button class="btn btn-sm btn-outline-primary" onclick="toggleRowMenu(this, ${r.id}, ${r.is_paid})">編輯</button>
             <span class="row-actions" style="display:none">
                 ${r.is_paid ? `<button class="btn btn-sm btn-outline-warning ms-1" onclick="markUnpaid(${r.id})">未付款</button>` : `<button class="btn btn-sm btn-outline-success ms-1" onclick="showPayment(${r.id})">付款</button>`}
                 <button class="btn btn-sm btn-outline-danger ms-1" onclick="del(${r.id})">刪除</button>
             </span>
-        </td>
+        </span></td>
     </tr>`).join('');
     const sumAmt = rows.reduce((s, r) => s + Math.round(r.amount), 0);
     const sumTax = rows.reduce((s, r) => s + Math.round(r.tax), 0);
@@ -252,8 +262,8 @@ function renderRows(rows) {
 function loadVendorFilter() {
     axios.get('/api/vendors').then(res => {
         const sel = document.getElementById('vendorFilter');
-        res.data.filter(v => v.is_active).forEach(v => {
-            sel.innerHTML += `<option value="${v.id}">${v.name}</option>`;
+        res.data.forEach(v => {
+            sel.innerHTML += `<option value="${v.id}">${v.code} - ${v.name}</option>`;
         });
     });
 }
@@ -391,5 +401,25 @@ function del(id) {
 resetForm();
 loadVendorFilter();
 loadData();
+</script>
+<script>
+(function() {
+    function alignToggle() {
+        var btn = document.getElementById('sidebarToggle');
+        var vendorTh = document.querySelector('#dataTable thead tr:nth-child(2) th:first-child');
+        if (!btn || !vendorTh) return;
+        var btnRect = btn.getBoundingClientRect();
+        var thRect = vendorTh.getBoundingClientRect();
+        btn.style.marginTop = Math.max(0, thRect.top - btnRect.top) + 'px';
+    }
+    function delayedAlign() { setTimeout(alignToggle, 50); }
+    delayedAlign();
+    window.addEventListener('resize', delayedAlign);
+    var sidebar = document.getElementById('mainSidebar');
+    if (sidebar) {
+        var obs = new MutationObserver(delayedAlign);
+        obs.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+    }
+})();
 </script>
 {% endblock %}

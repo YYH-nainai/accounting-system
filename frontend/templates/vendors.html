@@ -97,7 +97,7 @@
         <table class="table table-hover" id="dataTable">
             <thead>
                 <tr>
-                    <th>編號</th>
+                    <th>廠商</th>
                     <th>廠商名稱</th>
                     <th>分類</th>
                     <th>聯絡人</th>
@@ -137,9 +137,19 @@ function loadData() {
     });
 }
 
+function autoCode() {
+    axios.get('/api/vendors/').then(res => {
+        const codes = res.data.map(v => v.code).filter(c => c && c.startsWith('V'));
+        let max = 0;
+        codes.forEach(c => { const n = parseInt(c.slice(1)); if (n > max) max = n; });
+        const next = 'V' + String(max + 1).padStart(3, '0');
+        document.getElementById('code').value = next;
+    });
+}
+
 function resetForm() {
     document.getElementById('editId').value = '';
-    document.getElementById('code').value = '';
+    autoCode();
     document.getElementById('name').value = '';
     document.getElementById('category').value = '';
     document.getElementById('contact_person').value = '';
@@ -151,15 +161,6 @@ function resetForm() {
     document.getElementById('bank_code').value = '';
     document.getElementById('bank_account').value = '';
     document.getElementById('payment_terms').value = '';
-    autoCode();
-}
-
-function autoCode() {
-    axios.get('/api/vendors/next-code?prefix=H').then(res => {
-        document.getElementById('code').value = res.data.code;
-    }).catch(() => {
-        document.getElementById('code').value = 'H01';
-    });
 }
 
 function fillForm(data) {
@@ -209,7 +210,7 @@ function del(id) {
     axios.delete('/api/vendors/' + id).then(() => loadData()).catch(err => alert(err.response?.data?.detail || '刪除失敗'));
 }
 
-autoCode();
 loadData();
+autoCode();
 </script>
 {% endblock %}

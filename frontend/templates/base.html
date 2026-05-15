@@ -15,7 +15,22 @@
         .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background: #34495e; }
         .sidebar .nav-link i { margin-right: 8px; width: 20px; text-align: center; }
         .sidebar .brand { color: #fff; font-size: 1.2rem; padding: 0 1.2rem 1rem; border-bottom: 1px solid #34495e; margin-bottom: 0.5rem; }
-        .main-content { padding: 2rem; }
+        .main-content { padding: 2rem; flex: 1; min-width: 0; min-height: 100vh; }
+        .row { flex-wrap: nowrap; }
+        .sidebar-toggle {
+            flex: 0 0 auto; width: 22px; cursor: pointer; user-select: none;
+            background: transparent; border: none; padding: 0;
+            font-size: 0; outline: none;
+        }
+        .sidebar-toggle::before {
+            font-size: 1rem; font-weight: bold; font-family: monospace;
+            color: #e74c3c; content: '<';
+            display: block; text-align: center; line-height: 1.4;
+            margin-top: -2px;
+        }
+        .sidebar-toggle:hover::before { color: #e74c3c; }
+        .sidebar-toggle.hidden-state::before { content: '>'; margin-top: 0; }
+        #mainSidebar.sidebar-hidden { display: none !important; }
         .card { border: none; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
         .card-header { background: #fff; border-bottom: 2px solid #f0f0f0; font-weight: 600; }
         .table th { background: #f8f9fa; }
@@ -30,7 +45,7 @@
 <body>
     <div class="container-fluid">
         <div class="row">
-            <div class="col-md-2 sidebar d-none d-md-block">
+            <div class="col-md-2 sidebar d-none d-md-block" id="mainSidebar" style="flex:0 0 15%;max-width:15%;">
                 <div class="brand"><i class="bi bi-calculator"></i> 會計系統</div>
                 <ul class="nav flex-column">
                     <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-house"></i>首頁</a></li>
@@ -52,6 +67,7 @@
                     <li class="nav-item"><a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right"></i>登出</a></li>
                 </ul>
             </div>
+            <button id="sidebarToggle" class="sidebar-toggle"></button>
             <div class="col-md-10 main-content">
                 <div id="storageAlert" class="storage-warn"></div>
                 {% block content %}{% endblock %}
@@ -73,6 +89,26 @@
             document.getElementById('storageAlert').style.display = 'block';
         }
     });
+    </script>
+    <script>
+    (function() {
+        var sidebar = document.getElementById('mainSidebar');
+        var btn = document.getElementById('sidebarToggle');
+
+        function apply(state) {
+            sidebar.classList.toggle('sidebar-hidden', state === 'hidden');
+            btn.classList.toggle('hidden-state', state === 'hidden');
+        }
+
+        var saved = localStorage.getItem('sidebarHidden');
+        if (saved === 'true') apply('hidden');
+
+        btn.addEventListener('click', function() {
+            var isHidden = sidebar.classList.contains('sidebar-hidden');
+            apply(isHidden ? 'visible' : 'hidden');
+            localStorage.setItem('sidebarHidden', !isHidden);
+        });
+    })();
     </script>
     {% block scripts %}{% endblock %}
 </body>
